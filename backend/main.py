@@ -52,7 +52,8 @@ nlp_engine = provider.create_engine()
 analyzer = AnalyzerEngine(nlp_engine=nlp_engine, supported_languages=["en"])
 
 # --- NEW: Custom Logic for Indian Phone Numbers ---
-indian_phone_pattern = Pattern(name="indian_phone", regex=r"\b[6-9]\d{9}\b", score=0.8)
+# FIXED: Increased score to 0.99 to override generic DATE_TIME recognizer
+indian_phone_pattern = Pattern(name="indian_phone", regex=r"\b[6-9]\d{9}\b", score=0.99)
 phone_recognizer = PatternRecognizer(supported_entity="PHONE_NUMBER", patterns=[indian_phone_pattern])
 analyzer.registry.add_recognizer(phone_recognizer)
 # --------------------------------------------------
@@ -84,8 +85,12 @@ class LogResponse(BaseModel):
 def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     start_time = time.time()
     
-    # Analyze the prompt for PII
-    results = analyzer.analyze(text=request.prompt, entities=None, language='en')
+    # --- FIXED: Define exact entities to prevent US/UK false positives ---
+    TARGET_ENTITIES = ["PERSON", "EMAIL_ADDRESS", "LOCATION", "ORGANIZATION", "PHONE_NUMBER", "DATE_TIME"]
+    
+    # Analyze the prompt for PII using ONLY target entities
+    results = analyzer.analyze(text=request.prompt, entities=TARGET_ENTITIES, language='en')
+    # ---------------------------------------------------------------------
     
     # Extract detected entity types
     entity_types = list(set([res.entity_type for res in results]))
@@ -113,12 +118,12 @@ def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_log)
     
-    # --- NEW: Real LLM Integration ---
+    # --- Real LLM Integration ---
     try:
         if llm_model:
-            # Send the SAFE, MASKED text to the real LLM
+            # Send the SAFE, MASKED text to the real LLM (Forcing plain text only AND forcing tag retention)
             response = llm_model.generate_content(
-                f"You are a helpful assistant. Reply to this prompt naturally: {masked_text}"
+                f"You are a helpful assistant. Reply to this prompt naturally in plain text ONLY. DO NOT use any Markdown formatting, bolding, italics, bullet points, or special symbols (like *, #, or -). IMPORTANT: If the prompt contains bracketed placeholders like <PERSON>, <ORGANIZATION>, <PHONE_NUMBER>, or <EMAIL_ADDRESS>, you MUST use those exact bracketed tags in your response. Do not replace them with 'Insert Name' or generic text. Here is the prompt: {masked_text}"
             )
             llm_response = response.text
         else:

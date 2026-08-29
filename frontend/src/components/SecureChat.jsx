@@ -1,8 +1,32 @@
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { Send, Settings, Shield, User, Bot, AlertTriangle } from 'lucide-react';
+import { Send, Settings, Shield, User, Bot, AlertTriangle, Copy, Check } from 'lucide-react';
 
 const API_URL = 'http://localhost:8000/api';
+
+const CopyButton = ({ text }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1.5 px-2 py-1 mt-1 text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 rounded-md transition-all"
+      title="Copy response"
+    >
+      {copied ? (
+        <><Check size={14} className="text-green-400" /> Copied!</>
+      ) : (
+        <><Copy size={14} /> Copy</>
+      )}
+    </button>
+  );
+};
 
 export default function SecureChat() {
   const [messages, setMessages] = useState([]);
@@ -115,9 +139,9 @@ export default function SecureChat() {
               {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
             </div>
             
-            {/* Message Bubble */}
-            <div className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-              <div className={`px-4 py-3 rounded-2xl whitespace-pre-wrap leading-relaxed ${
+            {/* Message Bubble & Actions */}
+            <div className={`flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'} w-full`}>
+              <div className={`px-4 py-3 rounded-2xl whitespace-pre-wrap leading-relaxed min-w-[200px] ${
                 msg.role === 'user' 
                   ? 'bg-indigo-600 text-white rounded-tr-none' 
                   : msg.isError ? 'bg-red-900/50 border border-red-500/30 text-red-200 rounded-tl-none' : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700'
@@ -125,9 +149,14 @@ export default function SecureChat() {
                 {msg.content}
               </div>
               
+              {/* Toolbar beneath AI message */}
+              {msg.role === 'ai' && !msg.isError && (
+                <CopyButton text={msg.content} />
+              )}
+              
               {/* Developer Mode Payload Badge */}
               {developerMode && msg.role === 'user' && msg.maskedContent && (
-                <div className="mt-1 bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-slate-300 w-full max-w-md animate-in fade-in slide-in-from-top-2">
+                <div className="mt-2 bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-slate-300 w-full max-w-md animate-in fade-in slide-in-from-top-2">
                   <div className="flex items-center gap-2 mb-2 text-indigo-400 text-xs font-semibold uppercase tracking-wider">
                     <AlertTriangle size={14} />
                     Payload Sent to LLM

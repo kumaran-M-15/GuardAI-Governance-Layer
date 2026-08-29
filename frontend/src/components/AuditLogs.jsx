@@ -85,10 +85,13 @@ export default function AuditLogs() {
                   const entities = JSON.parse(log.detected_entities || "[]");
                   const hasEntities = entities.length > 0;
                   
+                  // Force UTC parsing by appending 'Z' if missing
+                  const timeString = log.timestamp.includes('Z') ? log.timestamp : `${log.timestamp}Z`;
+                  
                   return (
                     <tr key={log.id} className="hover:bg-slate-800/30 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
-                        {new Date(log.timestamp).toLocaleString()}
+                        {new Date(timeString).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-mono">
                         {log.user_id}
